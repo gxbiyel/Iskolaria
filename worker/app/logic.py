@@ -6,6 +6,8 @@ MESSAGES = {
     "approved": "Congratulations! Your application was approved.",
     "rejected": "Your application was not approved.",
     "waitlisted": "Your application has been waitlisted.",
+    "cancelled": "Your application was cancelled.",
+    "removed": "You have been removed from this scholarship.",
 }
 
 

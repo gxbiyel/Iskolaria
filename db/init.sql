@@ -38,8 +38,8 @@ CREATE TABLE applications (
     gwa           NUMERIC(3,2) NOT NULL,
     family_income NUMERIC(12,2) NOT NULL,
     year_level    INT NOT NULL,
-    status        VARCHAR(20) NOT NULL DEFAULT 'submitted'
-                    CHECK (status IN ('submitted','under_review','approved','rejected','waitlisted')),
+    status VARCHAR(20) NOT NULL DEFAULT 'submitted'
+                    CHECK (status IN ('submitted','under_review','approved','rejected','waitlisted','cancelled','removed')),
     remarks       TEXT,
     created_at    TIMESTAMP NOT NULL DEFAULT now(),
     updated_at    TIMESTAMP NOT NULL DEFAULT now(),

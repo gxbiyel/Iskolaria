@@ -2,7 +2,7 @@ const express = require("express");
 const jwt = require("jsonwebtoken");
 const Redis = require("ioredis");
 const { Pool } = require("pg");
-const { canTransition, missingDocuments } = require("./logic");
+const { canTransition, canCancel, missingDocuments } = require("./logic");
 
 const app = express();
 app.use(express.json());
@@ -96,34 +96,36 @@ app.post(
         if (missing.length)
         return res.status(422).json({ detail: "Missing documents", missing });
 
-        // 3. Insert; the UNIQUE (user_id, scholarship_id) constraint is the real duplicate guard
-        try {
+        // 3. Insert. If the student previously CANCELLED, reuse that row; any other existing row is a duplicate.
         const ins = await pool.query(
             `INSERT INTO applications (user_id, scholarship_id, course, gwa, family_income, year_level)
-        VALUES ($1,$2,$3,$4,$5,$6) RETURNING id, ${REF} AS reference_no`,
+            VALUES ($1,$2,$3,$4,$5,$6)
+            ON CONFLICT (user_id, scholarship_id) DO UPDATE SET
+                course=EXCLUDED.course, gwa=EXCLUDED.gwa, family_income=EXCLUDED.family_income,
+                year_level=EXCLUDED.year_level, status='submitted', remarks=NULL,
+                created_at=now(), updated_at=now()
+            WHERE applications.status='cancelled'
+            RETURNING id, ${REF} AS reference_no`,
             [req.user.id, scholarship_id, course, gwa, family_income, year_level],
         );
-        await queue(ins.rows[0].id, req.user.id, "submitted");
-        res.status(201).json(ins.rows[0]);
-        } catch (e) {
-        if (e.code === "23505") {
+
+        if (!ins.rowCount) {
             const ex = await pool.query(
-            `SELECT status, ${REF} AS reference_no FROM applications WHERE user_id=$1 AND scholarship_id=$2`,
-            [req.user.id, scholarship_id],
+                `SELECT status, ${REF} AS reference_no FROM applications WHERE user_id=$1 AND scholarship_id=$2`,
+                [req.user.id, scholarship_id],
             );
-            return res
-            .status(409)
-            .json({
+            return res.status(409).json({
                 detail: "You already applied to this scholarship",
                 existing: ex.rows[0],
             });
         }
-        throw e;
-        }
+
+        await queue(ins.rows[0].id, req.user.id, "submitted");
+        res.status(201).json(ins.rows[0]);
     }),
     );
 
-    app.get(
+app.get(
     "/applications/mine",
     auth(),
     wrap(async (req, res) => {
@@ -136,6 +138,40 @@ app.post(
         res.json(r.rows);
     }),
 );
+
+// Applicant: cancel / revoke my own application
+app.put("/applications/:id/cancel", auth(), wrap(async (req, res) => {
+    const client = await pool.connect();
+    try {
+        await client.query("BEGIN");
+        // user_id in the WHERE clause = ownership check
+        const cur = await client.query(
+            "SELECT status, scholarship_id FROM applications WHERE id=$1 AND user_id=$2 FOR UPDATE",
+            [req.params.id, req.user.id],
+        );
+        if (!cur.rowCount) {
+            await client.query("ROLLBACK");
+            return res.status(404).json({ detail: "Not found" });
+        }
+        const row = cur.rows[0];
+        if (!canCancel(row.status)) {
+            await client.query("ROLLBACK");
+            return res.status(409).json({ detail: `A ${row.status} application cannot be cancelled` });
+        }
+        await client.query(
+            "UPDATE applications SET status='cancelled', updated_at=now() WHERE id=$1",
+            [req.params.id],
+        );
+        await client.query("COMMIT");
+        await queue(Number(req.params.id), req.user.id, "cancelled");
+        res.json({ ok: true });
+    } catch (e) {
+        await client.query("ROLLBACK");
+        throw e;
+    } finally {
+        client.release();
+    }
+}));
 
 app.put(
     "/applications/:id/status",
@@ -170,6 +206,13 @@ app.put(
             await client.query("ROLLBACK");
             return res.status(409).json({ detail: "No slots remaining" });
             }
+        }
+        if (row.status === "approved" && status === "removed") {
+            // give the slot back (never above slots_total)
+            await client.query(
+                "UPDATE scholarships SET slots_remaining = LEAST(slots_total, slots_remaining + 1) WHERE id=$1",
+                [row.scholarship_id],
+            );
         }
         await client.query(
             "UPDATE applications SET status=$1, remarks=$2, updated_at=now() WHERE id=$3",

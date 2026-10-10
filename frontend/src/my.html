@@ -23,21 +23,44 @@
     <script>
         if (requireLogin('applicant')) {
             const $ = id => document.getElementById(id);
-            api('/applications/applications/mine').then(rows => {
-                $('apps').innerHTML = rows.length ? rows.map(a => `
-                    <div class="item"><div class="body"><h3>${esc(a.title)}</h3>
-        <p class="small muted">Reference ${esc(a.reference_no)}</p>
-        ${a.remarks ? `<p>Remarks from the scholarship office: ${esc(a.remarks)}</p>` : ''}</div>
-        <div>${badge(a.status)}</div></div>`).join('')
-                    : '<p>You have not applied yet. <a href="index.html">Browse open scholarships</a></p>';
-            }).catch(e => { $('apps').textContent = ''; show($('msg'), e.message, 'error'); });
 
-            api('/applications/notifications/mine').then(rows => {
-                $('notes').innerHTML = rows.length ? rows.map(n => `
-                    <div class="item"><div class="body">${esc(n.message)}</div>
-                    <div class="small muted">${esc(day(n.created_at))}</div></div>`).join('')
-                    : '<p class="muted">No notifications yet. You will see a message here each time your status changes.</p>';
-            }).catch(() => { $('notes').textContent = ''; });
+            function loadApps() {
+                api('/applications/applications/mine').then(rows => {
+                    $('apps').innerHTML = rows.length ? rows.map(a => `
+                        <div class="item"><div class="body"><h3>${esc(a.title)}</h3>
+                        <p class="small muted">Reference ${esc(a.reference_no)}</p>
+                        ${a.remarks ? `<p>Remarks from the scholarship office: ${esc(a.remarks)}</p>` : ''}</div>
+                        <div>${badge(a.status)}
+                            ${['submitted', 'under_review', 'waitlisted'].includes(a.status)
+                            ? `<div><button class="btn danger small" data-cancel="${esc(a.id)}">Cancel application</button></div>`
+                            : ''}
+                        </div></div>`).join('')
+                        : '<p>You have not applied yet. <a href="index.html">Browse open scholarships</a></p>';
+                }).catch(e => { $('apps').textContent = ''; show($('msg'), e.message, 'error'); });
+
+                api('/applications/notifications/mine').then(rows => {
+                    $('notes').innerHTML = rows.length ? rows.map(n => `
+                        <div class="item"><div class="body">${esc(n.message)}</div>
+                        <div class="small muted">${esc(day(n.created_at))}</div></div>`).join('')
+                        : '<p class="muted">No notifications yet. You will see a message here each time your status changes.</p>';
+                }).catch(() => { $('notes').textContent = ''; });
+            }
+
+            $('apps').addEventListener('click', async ev => {
+                const b = ev.target.closest('button[data-cancel]');
+                if (!b || !confirm('Cancel this application? Any approved slot will be released.')) return;
+                b.disabled = true;
+                try {
+                    await api(`/applications/applications/${b.dataset.cancel}/cancel`, { method: 'PUT' });
+                    show($('msg'), 'Application cancelled.', 'ok');
+                    loadApps();
+                } catch (e) {
+                    show($('msg'), e.message, 'error');
+                    b.disabled = false;
+                }
+            });
+
+            loadApps();
         }
     </script>
 </body>

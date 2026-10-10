@@ -39,6 +39,8 @@ const STATUS = {
     approved: "Approved",
     rejected: "Rejected",
     waitlisted: "Waitlisted",
+    cancelled: "Cancelled",
+    removed: "Removed",
 };
 const badge = (s) =>
     `<span class="badge ${esc(s)}">${esc(STATUS[s] || s)}</span>`;
