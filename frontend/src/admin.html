@@ -89,9 +89,9 @@
                     const r = await api('/applications/reports/summary');
                     const c = {};
                     Object.keys(STATUS).forEach(k => c[k] = 0);
-                    if (Array.isArray(r)) r.forEach(x => c[x.status] = Number(x.count));
-                    else Object.entries(r).forEach(([k, v]) => { if (k in c) c[k] = Number(v); });
-                    $('summary').innerHTML = Object.keys(STATUS).map(k => `<div class="stat"><div class="n">${c[k]}</div>${esc(STATUS[k])}</div>`).join('');
+                    (r.by_status || []).forEach(x => { if (x.status in c) c[x.status] = Number(x.count); });
+                    $('summary').innerHTML = Object.keys(STATUS).map(k =>
+                        `<div class="stat"><div class="n">${c[k]}</div>${esc(STATUS[k])}</div>`).join('');
                 } catch (e) { $('summary').textContent = ''; }
             }
 
