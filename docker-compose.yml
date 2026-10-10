@@ -1,0 +1,121 @@
+x-db-env: &db-env
+    DB_HOST: db
+    DB_NAME: ${DB_NAME}
+    DB_USER: ${DB_USER}
+    DB_PASSWORD: ${DB_PASSWORD}
+
+services:
+    proxy:
+        build: ./proxy
+        image: scholarhub/proxy:${TAG:-latest}
+        ports: ["8080:80"]               # the ONLY published port
+        depends_on:
+            frontend: { condition: service_healthy }
+            auth-service: { condition: service_healthy }
+            scholarship-api: { condition: service_healthy }
+            application-api: { condition: service_healthy }
+            upload-service: { condition: service_healthy }
+        restart: unless-stopped
+        networks: [frontend-net]
+
+    frontend:
+        build:
+            context: ./frontend
+            args: { BUILD_NUMBER: "${TAG:-dev}" }
+        image: scholarhub/frontend:${TAG:-latest}
+        restart: unless-stopped
+        networks: [frontend-net]
+
+    auth-service:
+        build: { context: ./auth-service, target: production }
+        image: scholarhub/auth-service:${TAG:-latest}
+        environment:
+            <<: *db-env
+            JWT_SECRET: ${JWT_SECRET}
+            ADMIN_EMAIL: ${ADMIN_EMAIL}
+            ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+        depends_on: { db: { condition: service_healthy } }
+        restart: unless-stopped
+        networks: [frontend-net, backend-net]
+
+    scholarship-api:
+        build: { context: ./scholarship-api, target: production }
+        image: scholarhub/scholarship-api:${TAG:-latest}
+        environment:
+            <<: *db-env
+            JWT_SECRET: ${JWT_SECRET}
+        depends_on: { db: { condition: service_healthy } }
+        restart: unless-stopped
+        networks: [frontend-net, backend-net]
+
+    application-api:
+        build: { context: ./application-api, target: production }
+        image: scholarhub/application-api:${TAG:-latest}
+        environment:
+            <<: *db-env
+            JWT_SECRET: ${JWT_SECRET}
+            REDIS_HOST: redis
+            SCHOLARSHIP_API_URL: http://scholarship-api:8000
+        depends_on:
+            db: { condition: service_healthy }
+            redis: { condition: service_healthy }
+            scholarship-api: { condition: service_healthy }
+        restart: unless-stopped
+        networks: [frontend-net, backend-net]
+
+    upload-service:
+        build: { context: ./upload-service, target: production }
+        image: scholarhub/upload-service:${TAG:-latest}
+        environment:
+            <<: *db-env
+            JWT_SECRET: ${JWT_SECRET}
+        volumes: ["uploads-data:/data/uploads"]
+        depends_on: { db: { condition: service_healthy } }
+        restart: unless-stopped
+        networks: [frontend-net, backend-net]
+
+    worker:
+        build: { context: ./worker, target: production }
+        image: scholarhub/worker:${TAG:-latest}
+        environment:
+            <<: *db-env
+            REDIS_HOST: redis
+        depends_on:
+            db: { condition: service_healthy }
+            redis: { condition: service_healthy }
+        restart: unless-stopped
+        networks: [backend-net]
+
+    db:
+        build: ./db
+        image: scholarhub/db:${TAG:-latest}
+        environment:
+            POSTGRES_DB: ${DB_NAME}
+            POSTGRES_USER: ${DB_USER}
+            POSTGRES_PASSWORD: ${DB_PASSWORD}
+        volumes: ["pg-data:/var/lib/postgresql/data"]
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+            interval: 10s
+            timeout: 5s
+            retries: 10
+        restart: unless-stopped
+        networks: [backend-net]
+
+    redis:
+        image: redis:7-alpine
+        healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
+            interval: 10s
+            timeout: 3s
+            retries: 10
+        restart: unless-stopped
+        networks: [backend-net]
+
+volumes:
+    pg-data:
+    uploads-data:
+
+networks:
+    frontend-net:
+    backend-net:
