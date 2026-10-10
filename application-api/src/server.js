@@ -196,14 +196,16 @@ app.get('/applications', auth('admin'), wrap(async (req, res) => {
         where.push(`a.scholarship_id = $${params.length}`);
     }
     const r = await pool.query(
-        `SELECT a.id, ${refOf('a')} AS reference_no, a.status, a.remarks, a.gwa,
-                a.family_income, a.year_level, a.created_at,
-                u.full_name, u.student_number, s.title
-        FROM applications a
-        JOIN users u ON u.id = a.user_id
-        JOIN scholarships s ON s.id = a.scholarship_id
-        ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
-        ORDER BY a.created_at DESC`, params);
+        `SELECT a.id, ${refOf("a")} AS reference_no, a.status, a.remarks, a.gwa,
+                    a.family_income, a.year_level, a.created_at,
+                    u.full_name, u.student_number, s.title, a.user_id, a.scholarship_id
+            FROM applications a
+            JOIN users u ON u.id = a.user_id
+            JOIN scholarships s ON s.id = a.scholarship_id
+            ${where.length ? "WHERE " + where.join(" AND ") : ""}
+            ORDER BY a.created_at DESC`,
+        params,
+    );
     res.json(r.rows);
 }));
 
