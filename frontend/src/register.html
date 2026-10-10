@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Register - ScholarHub</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <header id="nav"></header>
+    <main>
+        <h1>Create your account</h1>
+        <p class="muted">Use the student number your school has on file. Each student can register once.</p>
+        <form id="f" class="narrow">
+            <div class="field"><label for="sn">Student number</label><input id="sn" type="text" required
+                    placeholder="2021-00123" autocomplete="username"></div>
+            <div class="field"><label for="em">Email</label><input id="em" type="email" required autocomplete="email">
+            </div>
+            <div class="field"><label for="pw">Password (at least 8 characters)</label><input id="pw" type="password"
+                    minlength="8" required autocomplete="new-password"></div>
+            <div class="field"><label for="pw2">Confirm password</label><input id="pw2" type="password" minlength="8"
+                    required autocomplete="new-password"></div>
+            <div id="msg" class="msg" role="alert"></div>
+            <button class="btn" id="go">Create account</button>
+            <p>Already registered? <a href="login.html">Log in</a></p>
+        </form>
+    </main>
+    <footer id="footer"></footer>
+    <script src="js/build.js"></script>
+    <script src="js/api.js"></script>
+    <script>
+        const $ = id => document.getElementById(id);
+        $('f').addEventListener('submit', async ev => {
+            ev.preventDefault();
+            if ($('pw').value !== $('pw2').value) return show($('msg'), 'The two passwords do not match.', 'error');
+            $('go').disabled = true;
+            try {
+                await api('/auth/register', { method: 'POST', body: { student_number: $('sn').value, email: $('em').value, password: $('pw').value } });
+                location.href = 'login.html?registered=1';
+            } catch (e) { show($('msg'), e.message, 'error'); $('go').disabled = false; }
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Review board - ScholarHub</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <header id="nav"></header>
+    <main>
+        <h1>Review board</h1>
+        <div id="msg" class="msg" role="status"></div>
+        <h2>Summary</h2>
+        <div id="summary" class="cards"></div>
+        <h2>Applications</h2>
+        <div class="filters">
+            <div><label for="fs">Status</label><select id="fs">
+                    <option value="">All</option>
+                    <option value="submitted">Submitted</option>
+                    <option value="under_review">Under review</option>
+                    <option value="approved">Approved</option>
+                    <option value="rejected">Rejected</option>
+                    <option value="waitlisted">Waitlisted</option>
+                </select></div>
+            <div><label for="fc">Scholarship</label><select id="fc">
+                    <option value="">All</option>
+                </select></div>
+        </div>
+        <div class="scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Reference</th>
+                        <th>Applicant</th>
+                        <th>Scholarship</th>
+                        <th>GWA / income</th>
+                        <th>Status and action</th>
+                    </tr>
+                </thead>
+                <tbody id="board">
+                    <tr>
+                        <td colspan="5">Loading...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <h2>Create a scholarship</h2>
+        <form id="sf">
+            <div class="grid">
+                <div class="field"><label for="t">Title</label><input id="t" type="text" required></div>
+                <div class="field"><label for="mg">Worst GWA allowed</label><input id="mg" type="number" step="0.01"
+                        min="1" max="5" required></div>
+                <div class="field"><label for="mi">Income ceiling (PHP)</label><input id="mi" type="number" min="0"
+                        required></div>
+                <div class="field"><label for="sl">Slots</label><input id="sl" type="number" min="1" required></div>
+                <div class="field"><label for="dl">Deadline</label><input id="dl" type="date" required></div>
+            </div>
+            <div class="field"><label for="d">Description</label><textarea id="d" rows="2"></textarea></div>
+            <div class="field checks"><label>Year levels</label>
+                <label><input type="checkbox" name="yl" value="1">1</label><label><input type="checkbox" name="yl"
+                        value="2">2</label>
+                <label><input type="checkbox" name="yl" value="3">3</label><label><input type="checkbox" name="yl"
+                        value="4">4</label>
+            </div>
+            <div class="field"><label for="rd">Required documents (separate with commas)</label>
+                <input id="rd" type="text" placeholder="transcript, proof of income" required>
+            </div>
+            <button class="btn">Create scholarship</button>
+        </form>
+        <h2>Open scholarships</h2>
+        <div id="schlist"></div>
+    </main>
+    <footer id="footer"></footer>
+    <script src="js/build.js"></script>
+    <script src="js/api.js"></script>
+    <script>
+        if (requireLogin('admin')) {
+            const $ = id => document.getElementById(id);
+            // Mirrors the server's transition rules; the API still enforces them.
+            const NEXT = { submitted: ['under_review'], under_review: ['approved', 'rejected', 'waitlisted'], waitlisted: ['approved', 'rejected'], approved: [], rejected: [] };
+            const VERB = { under_review: 'Start review', approved: 'Approve', rejected: 'Reject', waitlisted: 'Waitlist' };
+            let scholarships = [];
+
+            async function loadSummary() {
+                try {
+                    const r = await api('/applications/reports/summary');
+                    const c = {};
+                    Object.keys(STATUS).forEach(k => c[k] = 0);
+                    if (Array.isArray(r)) r.forEach(x => c[x.status] = Number(x.count));
+                    else Object.entries(r).forEach(([k, v]) => { if (k in c) c[k] = Number(v); });
+                    $('summary').innerHTML = Object.keys(STATUS).map(k => `<div class="stat"><div class="n">${c[k]}</div>${esc(STATUS[k])}</div>`).join('');
+                } catch (e) { $('summary').textContent = ''; }
+            }
+
+            async function loadScholarships() {
+                scholarships = await api('/scholarships/scholarships');
+                const cur = $('fc').value;
+                $('fc').innerHTML = '<option value="">All</option>' + scholarships.map(s => `<option value="${esc(s.id)}">${esc(s.title)}</option>`).join('');
+                $('fc').value = cur;
+                $('schlist').innerHTML = scholarships.map(s => `<div class="item"><div class="body"><h3>${esc(s.title)}</h3>
+                    <p class="small muted">Deadline ${esc(day(s.deadline))}, ${esc(s.slots_remaining)} of ${esc(s.slots_total)} slots left</p></div>
+                    <button class="btn danger small" data-close="${esc(s.id)}">Close scholarship</button></div>`).join('') || '<p class="muted">No open scholarships.</p>';
+            }
+
+            async function loadBoard() {
+                const q = new URLSearchParams();
+                if ($('fs').value) q.set('status', $('fs').value);
+                if ($('fc').value) q.set('scholarship_id', $('fc').value);
+                try {
+                    const rows = await api('/applications/applications' + (q.toString() ? '?' + q : ''));
+                    $('board').innerHTML = rows.length ? rows.map(a => `<tr>
+        <td>${esc(a.reference_no)}</td>
+        <td>${esc(a.full_name || a.email || 'User ' + a.user_id)}</td>
+        <td>${esc(a.title)}</td>
+        <td>${esc(a.gwa)}<br><span class="small muted">PHP ${money(a.family_income || 0)}</span></td>
+        <td>${badge(a.status)}${a.remarks ? `<div class="small muted">${esc(a.remarks)}</div>` : ''}
+            ${(a.documents || []).map(d => `<div><button class="linklike small" data-file="${esc(d.id)}">${esc(label(d.doc_type))}</button></div>`).join('')}
+            ${NEXT[a.status].length ? `<input type="text" id="r-${esc(a.id)}" placeholder="Remarks (optional)" aria-label="Remarks">
+            <div class="actions">${NEXT[a.status].map(s => `<button class="btn small ${s === 'rejected' ? 'danger' : ''}" data-id="${esc(a.id)}" data-status="${s}">${VERB[s]}</button>`).join('')}</div>` : ''}
+        </td></tr>`).join('') : '<tr><td colspan="5">No applications match these filters.</td></tr>';
+                } catch (e) { show($('msg'), e.message, 'error'); }
+            }
+
+            $('board').addEventListener('click', async ev => {
+                const f = ev.target.closest('button[data-file]');
+                if (f) return openFile(f.dataset.file);
+                const b = ev.target.closest('button[data-status]');
+                if (!b) return;
+                b.disabled = true;
+                try {
+                    const remarks = ($('r-' + b.dataset.id) || {}).value || '';
+                    await api(`/applications/applications/${b.dataset.id}/status`, { method: 'PUT', body: { status: b.dataset.status, remarks } });
+                    show($('msg'), 'Status updated.', 'ok');
+                    loadBoard(); loadSummary(); loadScholarships();
+                } catch (e) { show($('msg'), e.message, 'error'); b.disabled = false; }
+            });
+            $('fs').onchange = $('fc').onchange = loadBoard;
+
+            $('sf').addEventListener('submit', async ev => {
+                ev.preventDefault();
+                const years = [...document.querySelectorAll('input[name=yl]:checked')].map(c => Number(c.value));
+                if (!years.length) return show($('msg'), 'Select at least one year level.', 'error');
+                try {
+                    await api('/scholarships/scholarships', {
+                        method: 'POST', body: {
+                            title: $('t').value, description: $('d').value, max_gwa: Number($('mg').value), max_income: Number($('mi').value),
+                            year_levels: years, slots_total: Number($('sl').value), deadline: $('dl').value,
+                            required_documents: $('rd').value.split(',').map(x => x.trim().toLowerCase().replace(/\s+/g, '_')).filter(Boolean)
+                        }
+                    });
+                    show($('msg'), 'Scholarship created.', 'ok');
+                    $('sf').reset(); loadScholarships();
+                } catch (e) { show($('msg'), e.message, 'error'); }
+            });
+
+            $('schlist').addEventListener('click', async ev => {
+                const b = ev.target.closest('button[data-close]');
+                if (!b || !confirm('Close this scholarship? New applications will be refused.')) return;
+                const s = scholarships.find(x => String(x.id) === b.dataset.close);
+                try {
+                    await api('/scholarships/scholarships/' + s.id, { method: 'PUT', body: { ...s, is_open: false } });
+                    show($('msg'), 'Scholarship closed.', 'ok'); loadScholarships();
+                } catch (e) { show($('msg'), e.message, 'error'); }
+            });
+
+            loadScholarships().then(loadBoard).catch(e => show($('msg'), e.message, 'error'));
+            loadSummary();
+        }
+    </script>
+</body>
+
+</html>

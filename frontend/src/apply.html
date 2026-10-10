@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Apply - ScholarHub</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <header id="nav"></header>
+    <main>
+        <div id="content">Loading...</div>
+    </main>
+    <footer id="footer"></footer>
+    <script src="js/build.js"></script>
+    <script src="js/api.js"></script>
+    <script>
+        if (requireLogin('applicant')) {
+            const $ = s => document.querySelector(s);
+            const id = new URLSearchParams(location.search).get('id');
+            if (!id) location.href = 'index.html';
+            let sch = null;
+
+            api('/scholarships/scholarships/' + encodeURIComponent(id)).then(s => { sch = s; render(); })
+                .catch(e => { $('#content').innerHTML = `<div class="msg error">${esc(e.message)}</div>`; });
+
+            function render() {
+                const docs = sch.required_documents || [];
+                $('#content').innerHTML = `
+                    <h1>${esc(sch.title)}</h1><p>${esc(sch.description)}</p>
+                    <div class="facts"><span>GWA ${esc(sch.max_gwa)} or better</span><span>Family income up to PHP ${money(sch.max_income)}</span>
+                        <span>Year levels ${esc((sch.year_levels || []).join(', '))}</span><span>Deadline ${esc(day(sch.deadline))}</span>
+                        <span>${esc(sch.slots_remaining)} slots left</span></div>
+                    <h2>Your details</h2>
+                    <form id="f">
+                        <div class="grid">
+                        <div class="field"><label for="course">Course</label><input id="course" type="text" required></div>
+                        <div class="field"><label for="year">Year level</label><select id="year">${[1, 2, 3, 4, 5].map(n => `<option>${n}</option>`).join('')}</select></div>
+                        <div class="field"><label for="gwa">GWA</label><input id="gwa" type="number" step="0.01" min="1" max="5" required></div>
+                        <div class="field"><label for="inc">Family income per year (PHP)</label><input id="inc" type="number" min="0" required></div>
+                        </div>
+                        <button type="button" class="btn secondary" id="check">Check my eligibility</button>
+                        <div id="elig" class="msg"></div>
+                        <h2>Required documents</h2>
+                        <p class="muted small">PDF, JPG or PNG, up to 2 MB each.</p>
+                        ${docs.map(d => `<div class="field"><label for="doc_${esc(d)}">${esc(label(d))}</label>
+                        <input id="doc_${esc(d)}" type="file" accept=".pdf,.jpg,.jpeg,.png" required></div>`).join('')}
+                        <div id="msg" class="msg" role="alert"></div>
+                        <button class="btn" id="go">Submit application</button>
+                    </form>`;
+                        $('#check').onclick = checkEligibility;
+                        $('#f').addEventListener('submit', submit);
+            }
+
+            async function checkEligibility() {
+                if (!$('#gwa').value || !$('#inc').value) return show($('#elig'), 'Enter your GWA and family income first.', 'error');
+                try {
+                    const r = await api('/scholarships/eligibility/check', {
+                        method: 'POST', body: {
+                            scholarship_id: sch.id, gwa: Number($('#gwa').value), income: Number($('#inc').value), year_level: Number($('#year').value)
+                        }
+                    });
+                    if (r.eligible) show($('#elig'), 'You meet the requirements for this scholarship.', 'ok');
+                    else showHtml($('#elig'), 'You do not meet the requirements:<ul>' + r.reasons.map(x => `<li>${esc(x)}</li>`).join('') + '</ul>', 'error');
+                } catch (e) { show($('#elig'), e.message, 'error'); }
+            }
+
+            async function submit(ev) {
+                ev.preventDefault();
+                const msg = $('#msg'), docs = sch.required_documents || [], files = {};
+                for (const d of docs) {
+                    const f = $('#doc_' + d).files[0];
+                    if (!f) return show(msg, `Attach your ${label(d).toLowerCase()} before submitting.`, 'error');
+                    if (f.size > 2 * 1024 * 1024) return show(msg, `${label(d)} is larger than 2 MB.`, 'error');
+                    files[d] = f;
+                }
+                $('#go').disabled = true;            // blocks accidental double submission
+                msg.className = 'msg';
+                let done = false;
+                try {
+                    for (const d of docs) {
+                        const fd = new FormData();
+                        fd.append('scholarship_id', sch.id); fd.append('doc_type', d); fd.append('file', files[d]);
+                        await api('/uploads/upload', { method: 'POST', body: fd });
+                    }
+                    const r = await api('/applications/applications', {
+                        method: 'POST', body: {
+                            scholarship_id: sch.id, course: $('#course').value, year_level: Number($('#year').value),
+                            gwa: Number($('#gwa').value), family_income: Number($('#inc').value)
+                        }
+                    });
+                    done = true;
+                    $('#content').innerHTML = `<h1>Application submitted</h1>
+        <div class="msg ok">Your reference number is <strong>${esc(r.reference_no)}</strong>. Keep it for your records.</div>
+        <a class="btn" href="my.html">View my applications</a>`;
+                } catch (e) {
+                    if (e.status === 409 && e.data.existing)
+                        showHtml(msg, `You already applied to this scholarship. Reference <strong>${esc(e.data.existing.reference_no)}</strong>, status: ${esc(STATUS[e.data.existing.status] || e.data.existing.status)}. <a href="my.html">View my applications</a>`, 'error');
+                    else if (e.data && e.data.reasons) showHtml(msg, 'You are not eligible:<ul>' + e.data.reasons.map(x => `<li>${esc(x)}</li>`).join('') + '</ul>', 'error');
+                    else if (e.data && e.data.missing) show(msg, 'Missing documents: ' + e.data.missing.map(label).join(', '), 'error');
+                    else show(msg, e.message, 'error');
+                } finally { if (!done) $('#go').disabled = false; }
+            }
+        }
+    </script>
+</body>
+
+</html>
