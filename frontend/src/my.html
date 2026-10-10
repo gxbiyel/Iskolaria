@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>My applications - ScholarHub</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <header id="nav"></header>
+    <main>
+        <h1>My applications</h1>
+        <div id="msg" class="msg"></div>
+        <div id="apps">Loading...</div>
+        <h2>Notifications</h2>
+        <div id="notes">Loading...</div>
+    </main>
+    <footer id="footer"></footer>
+    <script src="js/build.js"></script>
+    <script src="js/api.js"></script>
+    <script>
+        if (requireLogin('applicant')) {
+            const $ = id => document.getElementById(id);
+            api('/applications/applications/mine').then(rows => {
+                $('apps').innerHTML = rows.length ? rows.map(a => `
+                    <div class="item"><div class="body"><h3>${esc(a.title)}</h3>
+        <p class="small muted">Reference ${esc(a.reference_no)}</p>
+        ${a.remarks ? `<p>Remarks from the scholarship office: ${esc(a.remarks)}</p>` : ''}</div>
+        <div>${badge(a.status)}</div></div>`).join('')
+                    : '<p>You have not applied yet. <a href="index.html">Browse open scholarships</a></p>';
+            }).catch(e => { $('apps').textContent = ''; show($('msg'), e.message, 'error'); });
+
+            api('/applications/notifications/mine').then(rows => {
+                $('notes').innerHTML = rows.length ? rows.map(n => `
+                    <div class="item"><div class="body">${esc(n.message)}</div>
+                    <div class="small muted">${esc(day(n.created_at))}</div></div>`).join('')
+                    : '<p class="muted">No notifications yet. You will see a message here each time your status changes.</p>';
+            }).catch(() => { $('notes').textContent = ''; });
+        }
+    </script>
+</body>
+
+</html>

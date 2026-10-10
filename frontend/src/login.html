@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Log in - ScholarHub</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <header id="nav"></header>
+    <main>
+        <h1>Log in</h1>
+        <div id="msg" class="msg" role="alert"></div>
+        <form id="f" class="narrow">
+            <div class="field"><label for="em">Email</label><input id="em" type="email" required autocomplete="email">
+            </div>
+            <div class="field"><label for="pw">Password</label><input id="pw" type="password" required
+                    autocomplete="current-password"></div>
+            <button class="btn" id="go">Log in</button>
+            <p>New here? <a href="register.html">Create an account</a></p>
+        </form>
+    </main>
+    <footer id="footer"></footer>
+    <script src="js/build.js"></script>
+    <script src="js/api.js"></script>
+    <script>
+        const $ = id => document.getElementById(id);
+        const q = new URLSearchParams(location.search);
+        if (q.get('registered')) show($('msg'), 'Account created. Log in to continue.', 'ok');
+        $('f').addEventListener('submit', async ev => {
+            ev.preventDefault();
+            $('go').disabled = true;
+            try {
+                const d = await api('/auth/login', { method: 'POST', body: { email: $('em').value, password: $('pw').value } });
+                session.save(d);
+                const next = q.get('next');
+                location.href = next && /^[\w-]+\.html(\?[\w=&%-]*)?$/.test(next) ? next : (d.role === 'admin' ? 'admin.html' : 'my.html');
+            } catch (e) { show($('msg'), e.message, 'error'); $('go').disabled = false; }
+        });
+    </script>
+</body>
+
+</html>
