@@ -68,6 +68,12 @@ app.post(
             }),
         },
         );
+        if (!r.ok) {
+            const err = await r
+                .json()
+                .catch(() => ({ detail: "Eligibility check failed" }));
+            return res.status(r.status).json(err);
+        }
         const elig = await r.json();
         if (!elig.eligible)
         return res
