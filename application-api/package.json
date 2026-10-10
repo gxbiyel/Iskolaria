@@ -1,0 +1,17 @@
+{
+    "name": "application-api",
+    "version": "1.0.0",
+    "scripts": {
+        "test": "jest",
+        "start": "node src/server.js"
+    },
+    "dependencies": {
+        "express": "4.21.2",
+        "ioredis": "5.4.2",
+        "jsonwebtoken": "9.0.2",
+        "pg": "8.13.1"
+    },
+    "devDependencies": {
+        "jest": "29.7.0"
+    }
+}
