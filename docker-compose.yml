@@ -1,3 +1,5 @@
+name: iskolaria
+
 x-db-env: &db-env
     DB_HOST: db
     DB_NAME: ${DB_NAME}
@@ -7,7 +9,7 @@ x-db-env: &db-env
 services:
     proxy:
         build: ./proxy
-        image: scholarhub/proxy:${TAG:-latest}
+        image: iskolaria/proxy:${TAG:-latest}
         ports: ["8080:80"]               # the ONLY published port
         depends_on:
             frontend: { condition: service_healthy }
@@ -22,13 +24,13 @@ services:
         build:
             context: ./frontend
             args: { BUILD_NUMBER: "${TAG:-dev}" }
-        image: scholarhub/frontend:${TAG:-latest}
+        image: iskolaria/frontend:${TAG:-latest}
         restart: unless-stopped
         networks: [frontend-net]
 
     auth-service:
         build: { context: ./auth-service, target: production }
-        image: scholarhub/auth-service:${TAG:-latest}
+        image: iskolaria/auth-service:${TAG:-latest}
         environment:
             <<: *db-env
             JWT_SECRET: ${JWT_SECRET}
@@ -40,7 +42,7 @@ services:
 
     scholarship-api:
         build: { context: ./scholarship-api, target: production }
-        image: scholarhub/scholarship-api:${TAG:-latest}
+        image: iskolaria/scholarship-api:${TAG:-latest}
         environment:
             <<: *db-env
             JWT_SECRET: ${JWT_SECRET}
@@ -50,7 +52,7 @@ services:
 
     application-api:
         build: { context: ./application-api, target: production }
-        image: scholarhub/application-api:${TAG:-latest}
+        image: iskolaria/application-api:${TAG:-latest}
         environment:
             <<: *db-env
             JWT_SECRET: ${JWT_SECRET}
@@ -65,7 +67,7 @@ services:
 
     upload-service:
         build: { context: ./upload-service, target: production }
-        image: scholarhub/upload-service:${TAG:-latest}
+        image: iskolaria/upload-service:${TAG:-latest}
         environment:
             <<: *db-env
             JWT_SECRET: ${JWT_SECRET}
@@ -76,7 +78,7 @@ services:
 
     worker:
         build: { context: ./worker, target: production }
-        image: scholarhub/worker:${TAG:-latest}
+        image: iskolaria/worker:${TAG:-latest}
         environment:
             <<: *db-env
             REDIS_HOST: redis
@@ -88,14 +90,14 @@ services:
 
     db:
         build: ./db
-        image: scholarhub/db:${TAG:-latest}
+        image: iskolaria/db:${TAG:-latest}
         environment:
             POSTGRES_DB: ${DB_NAME}
             POSTGRES_USER: ${DB_USER}
             POSTGRES_PASSWORD: ${DB_PASSWORD}
         volumes: ["pg-data:/var/lib/postgresql/data"]
         healthcheck:
-            test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+            test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
             interval: 10s
             timeout: 5s
             retries: 10

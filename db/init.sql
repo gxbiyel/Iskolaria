@@ -38,8 +38,8 @@ CREATE TABLE applications (
     gwa           NUMERIC(3,2) NOT NULL,
     family_income NUMERIC(12,2) NOT NULL,
     year_level    INT NOT NULL,
-    status        VARCHAR(20) NOT NULL DEFAULT 'submitted'
-                    CHECK (status IN ('submitted','under_review','approved','rejected','waitlisted')),
+    status VARCHAR(20) NOT NULL DEFAULT 'submitted'
+                    CHECK (status IN ('submitted','under_review','approved','rejected','waitlisted','cancelled','removed')),
     remarks       TEXT,
     created_at    TIMESTAMP NOT NULL DEFAULT now(),
     updated_at    TIMESTAMP NOT NULL DEFAULT now(),
@@ -66,3 +66,15 @@ CREATE TABLE notifications (
     message        TEXT NOT NULL,
     created_at     TIMESTAMP NOT NULL DEFAULT now()
 );
+
+INSERT INTO students (student_number, full_name) VALUES
+    ('202600123','Juan Dela Cruz'),
+    ('202600456','Maria Santos'),
+    ('202600789','Jose Reyes');
+
+INSERT INTO scholarships
+    (title, description, max_gwa, max_income, year_levels,
+    slots_total, slots_remaining, deadline, required_documents)
+VALUES
+    ('UAEB Scholarship','For high-performing students.',2.00,250000,'{2,3,4}',5,5,CURRENT_DATE+90,'{transcript,proof_of_income}'),
+    ('White Scholarship','Financial aid for low-income students.',2.50,150000,'{1,2,3,4}',10,10,CURRENT_DATE+60,'{certificate_of_indigency,transcript}');

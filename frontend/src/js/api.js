@@ -39,6 +39,8 @@ const STATUS = {
     approved: "Approved",
     rejected: "Rejected",
     waitlisted: "Waitlisted",
+    cancelled: "Cancelled",
+    removed: "Removed",
 };
 const badge = (s) =>
     `<span class="badge ${esc(s)}">${esc(STATUS[s] || s)}</span>`;
@@ -132,7 +134,7 @@ function renderLayout() {
         ? `<span class="who">${esc(u.full_name)}</span><button class="linklike" id="logout">Log out</button>`
         : '<a href="login.html">Log in</a><a href="register.html">Register</a>';
     document.getElementById("nav").innerHTML =
-        `<div class="in"><a class="brand" href="index.html">ScholarHub</a>${links}</div>`;
+        `<div class="in"><a class="brand" href="index.html">Iskolaria</a>${links}</div>`;
     const lo = document.getElementById("logout");
     if (lo)
         lo.onclick = () => {
@@ -140,6 +142,6 @@ function renderLayout() {
         location.href = "login.html";
         };
     document.getElementById("footer").innerHTML =
-        `ScholarHub, build <strong>${esc(window.BUILD_NUMBER || "dev")}</strong>`;
+        `Iskolaria, build <strong>${esc(window.BUILD_NUMBER || "dev")}</strong>`;
 }
 document.addEventListener("DOMContentLoaded", renderLayout);

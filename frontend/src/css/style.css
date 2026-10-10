@@ -319,6 +319,16 @@ textarea:focus {
     color: var(--warn)
 }
 
+.badge.cancelled {
+    background: #e7ecea;
+    color: var(--muted)
+}
+
+.badge.removed {
+    background: #f8e1df;
+    color: var(--bad)
+}
+
 .cards {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
@@ -384,4 +394,47 @@ td input[type=text] {
 
 .filters>div {
     min-width: 180px
+}
+
+.viewer {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, .75);
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    padding: 1rem
+}
+
+.viewer-box {
+    background: #fff;
+    border-radius: 8px;
+    padding: .8rem;
+    width: min(900px, 100%);
+    max-height: 92vh;
+    display: flex;
+    flex-direction: column;
+    gap: .6rem
+}
+
+.viewer-box button {
+    align-self: flex-end
+}
+
+#vbody {
+    overflow: auto;
+    flex: 1
+}
+
+#vbody img {
+    max-width: 100%;
+    display: block;
+    margin: 0 auto
+}
+
+#vbody iframe {
+    width: 100%;
+    height: 75vh;
+    border: 0
 }
