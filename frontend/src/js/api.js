@@ -1,4 +1,5 @@
 // Shared helpers: session, API calls, navigation bar and footer.
+
 const session = {
     get token() {
         return localStorage.getItem("sh_token");
@@ -33,6 +34,7 @@ function esc(s) {
         ],
     );
 }
+
 const STATUS = {
     submitted: "Submitted",
     under_review: "Under review",
@@ -42,10 +44,14 @@ const STATUS = {
     cancelled: "Cancelled",
     removed: "Removed",
 };
+
 const badge = (s) =>
     `<span class="badge ${esc(s)}">${esc(STATUS[s] || s)}</span>`;
+
 const day = (s) => String(s || "").slice(0, 10);
+
 const money = (n) => Number(n).toLocaleString("en-PH");
+
 const label = (k) => {
     const t = String(k).replace(/_/g, " ");
     return t.charAt(0).toUpperCase() + t.slice(1);
@@ -104,10 +110,16 @@ function requireLogin(role) {
 function show(el, text, type) {
     el.className = "msg " + (type || "info");
     el.textContent = text;
-}
-function showHtml(el, html, type) {
+    // Bring feedback into view on long pages (e.g. admin board)
+    if (el.scrollIntoView)
+        el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    function showHtml(el, html, type) {
     el.className = "msg " + (type || "info");
     el.innerHTML = html;
+    if (el.scrollIntoView)
+        el.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
 // Admin-only: files need the token, so fetch them and open as a blob
@@ -122,26 +134,39 @@ async function openFile(id) {
     window.open(URL.createObjectURL(await res.blob()), "_blank");
 }
 
+const LOGO = `<svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#0b3b3a"/><path d="M16 7 4.5 13 16 19l8.5-4.4V21h2v-8L16 7Z" fill="#fff"/><path d="M9 17.2v3.6c0 1.5 3.1 3.2 7 3.2s7-1.7 7-3.2v-3.6L16 21l-7-3.8Z" fill="#f2b134"/></svg>`;
+
 function renderLayout() {
     const u = session.user,
         on = !!(session.token && u);
-    let links = '<a href="index.html">Scholarships</a>';
-    if (on && u.role === "applicant")
-        links += '<a href="my.html">My applications</a>';
-    if (on && u.role === "admin")
-        links += '<a href="admin.html">Review board</a>';
-    links += on
-        ? `<span class="who">${esc(u.full_name)}</span><button class="linklike" id="logout">Log out</button>`
-        : '<a href="login.html">Log in</a><a href="register.html">Register</a>';
+    const page = location.pathname.split("/").pop() || "index.html";
+    const link = (href, text) =>
+        `<a href="${href}"${page === href ? ' aria-current="page"' : ""}>${text}</a>`;
+
+    let links = link("index.html", "Scholarships");
+    if (on && u.role === "applicant") links += link("my.html", "My applications");
+    if (on && u.role === "admin") links += link("admin.html", "Review board");
+    if (!on)
+        links += link("login.html", "Log in") + link("register.html", "Register");
+
+    const user = on
+        ? `<span class="who"><span class="avatar" aria-hidden="true">${esc((u.full_name || "?").trim().charAt(0).toUpperCase())}</span>${esc(u.full_name)}</span>
+            <button class="linklike" id="logout">Log out</button>`
+        : "";
+
     document.getElementById("nav").innerHTML =
-        `<div class="in"><a class="brand" href="index.html">Iskolaria</a>${links}</div>`;
+        `<div class="in"><a class="brand" href="index.html">${LOGO}Iskolaria</a>
+            <nav class="links" aria-label="Main">${links}</nav>${user}</div>`;
+
     const lo = document.getElementById("logout");
     if (lo)
         lo.onclick = () => {
         session.clear();
         location.href = "login.html";
         };
+
     document.getElementById("footer").innerHTML =
-        `Iskolaria, build <strong>${esc(window.BUILD_NUMBER || "dev")}</strong>`;
+        `Iskolaria · build <strong>${esc(window.BUILD_NUMBER || "dev")}</strong>`;
 }
+
 document.addEventListener("DOMContentLoaded", renderLayout);

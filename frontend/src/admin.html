@@ -13,8 +13,10 @@
     <main>
         <h1>Review board</h1>
         <div id="msg" class="msg" role="status"></div>
+
         <h2>Summary</h2>
         <div id="summary" class="cards"></div>
+
         <h2>Applications</h2>
         <div class="filters">
             <div><label for="fs">Status</label><select id="fs">
@@ -38,15 +40,17 @@
                         <th>Scholarship</th>
                         <th>GWA / income</th>
                         <th>Status and action</th>
+                        <th>Documents</th>
                     </tr>
                 </thead>
                 <tbody id="board">
                     <tr>
-                        <td colspan="5">Loading...</td>
+                        <td colspan="6">Loading...</td>
                     </tr>
                 </tbody>
             </table>
         </div>
+
         <h2>Create a scholarship</h2>
         <form id="sf">
             <div class="grid">
@@ -70,21 +74,25 @@
             </div>
             <button class="btn">Create scholarship</button>
         </form>
+
         <h2>Open scholarships</h2>
         <div id="schlist"></div>
     </main>
+
     <div id="viewer" class="viewer" role="dialog" aria-label="Document viewer">
         <div class="viewer-box">
             <button class="btn small danger" id="vclose">Close</button>
             <div id="vbody"></div>
         </div>
     </div>
+
     <footer id="footer"></footer>
     <script src="js/build.js"></script>
     <script src="js/api.js"></script>
     <script>
         if (requireLogin('admin')) {
             const $ = id => document.getElementById(id);
+
             // Mirrors the server's transition rules; the API still enforces them.
             const NEXT = {
                 submitted: ['under_review'],
@@ -94,7 +102,11 @@
                 rejected: [], removed: [], cancelled: []
             };
             const VERB = { under_review: 'Start review', approved: 'Approve', rejected: 'Reject', waitlisted: 'Waitlist', removed: 'Remove from scholarship' };
+
+            const FILE_ICON = '<svg class="doc-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>';
+
             let scholarships = [];
+            const openDocs = new Set();   // ids of document panels the admin has expanded
 
             async function loadSummary() {
                 try {
@@ -129,24 +141,58 @@
                         <td>${esc(a.title)}</td>
                         <td>${esc(a.gwa)}<br><span class="small muted">PHP ${money(a.family_income || 0)}</span></td>
                         <td>${badge(a.status)}${a.scholarship_open ? '' : ' <span class="badge closed">Closed</span>'}${a.remarks ? `<div class="small muted">${esc(a.remarks)}</div>` : ''}
-                            <div><button class="linklike small" data-docs="${esc(a.user_id)},${esc(a.scholarship_id)}" data-target="d-${esc(a.id)}">View documents</button></div>
-                            <div id="d-${esc(a.id)}"></div>
                             ${(a.scholarship_open && NEXT[a.status].length) ? `<input type="text" id="r-${esc(a.id)}" placeholder="Remarks (optional)" aria-label="Remarks">
                             <div class="actions">${NEXT[a.status].map(s => `<button class="btn small ${(s === 'rejected' || s === 'removed') ? 'danger' : ''}" data-id="${esc(a.id)}" data-status="${s}">${VERB[s]}</button>`).join('')}</div>` : ''}
                         </td>
-                        </tr>`).join('') : '<tr><td colspan="5">No applications match these filters.</td></tr>';
+                        <td class="docs-cell">
+                            <button class="docs-toggle" data-docs="${esc(a.user_id)},${esc(a.scholarship_id)}" data-target="d-${esc(a.id)}"
+                                aria-expanded="false" aria-controls="d-${esc(a.id)}">View documents</button>
+                            <div id="d-${esc(a.id)}"></div>
+                        </td>
+                        </tr>`).join('') : '<tr><td colspan="6">No applications match these filters.</td></tr>';
+
+                    // Keep panels the admin had open (e.g. after approving someone)
+                    for (const target of [...openDocs]) {
+                        const btn = document.querySelector(`button[data-target="${target}"]`);
+                        if (!btn) { openDocs.delete(target); continue; }
+                        const [u, s] = btn.dataset.docs.split(',');
+                        setExpanded(btn, true);
+                        loadDocs(u, s, target).catch(() => { });
+                    }
                 } catch (e) { show($('msg'), e.message, 'error'); }
             }
 
+            function setExpanded(btn, open) {
+                btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+                btn.textContent = open ? 'Hide documents' : 'View documents';
+            }
+
+            function docCard(x, u, s, target) {
+                const state = x.flagged ? 'flagged' : x.verified ? 'verified' : 'pending';
+                const pill = x.flagged ? '<span class="badge rejected">Flagged</span>'
+                    : x.verified ? '<span class="badge approved">Verified</span>'
+                        : '<span class="badge">Not reviewed</span>';
+                const rv = (v, f) => `data-review="${esc(x.id)}" data-v="${v}" data-f="${f}" data-u="${esc(u)}" data-s="${esc(s)}" data-target="${esc(target)}"`;
+                return `<div class="doc ${state}">
+                    <div class="doc-head">${FILE_ICON}<span class="doc-name">${esc(label(x.doc_type))}</span>${pill}</div>
+                    ${x.original_name ? `<div class="doc-file">${esc(x.original_name)}</div>` : ''}
+                    <div class="doc-actions">
+                        <button class="act open" data-file="${esc(x.id)}">Open</button>
+                        <button class="act verify ${x.verified ? 'on' : ''}" ${rv(x.verified ? 0 : 1, 0)} aria-pressed="${x.verified}">${x.verified ? 'Verified ✓' : 'Verify'}</button>
+                        <button class="act flag ${x.flagged ? 'on' : ''}" ${rv(0, x.flagged ? 0 : 1)} aria-pressed="${x.flagged}">${x.flagged ? 'Flagged ✓' : 'Flag'}</button>
+                    </div>
+                </div>`;
+            }
+
             async function loadDocs(u, s, target) {
+                const box = $(target);
+                if (!box.innerHTML) box.innerHTML = '<p class="small muted">Loading documents...</p>';
                 const docs = await api(`/uploads/documents?user_id=${u}&scholarship_id=${s}`);
-                $(target).innerHTML = docs.length ? docs.map(x => `<div class="small">
-                        <button class="linklike small" data-file="${esc(x.id)}">${esc(label(x.doc_type))}</button>
-                        ${x.verified ? '<span class="badge approved">verified</span>' : ''}
-                        ${x.flagged ? '<span class="badge rejected">flagged</span>' : ''}
-                        <button class="linklike small" data-review="${esc(x.id)}" data-v="1" data-f="0" data-u="${esc(u)}" data-s="${esc(s)}" data-target="${esc(target)}">Verify</button> |
-                        <button class="linklike small" data-review="${esc(x.id)}" data-v="0" data-f="1" data-u="${esc(u)}" data-s="${esc(s)}" data-target="${esc(target)}">Flag</button>
-                    </div>`).join('') : '<span class="small muted">No documents</span>';
+                // The panel may have been closed while we were waiting
+                if (!openDocs.has(target)) return;
+                box.innerHTML = docs.length
+                    ? `<div class="docs-list">${docs.map(x => docCard(x, u, s, target)).join('')}</div>`
+                    : '<p class="small muted">This applicant has not uploaded any documents.</p>';
             }
 
             async function viewFile(id) {
@@ -177,23 +223,40 @@
             document.addEventListener('keydown', ev => { if (ev.key === 'Escape') closeViewer(); });
 
             $('board').addEventListener('click', async ev => {
+                // Show / hide the documents panel
                 const d = ev.target.closest('button[data-docs]');
                 if (d) {
+                    const target = d.dataset.target;
+                    if (d.getAttribute('aria-expanded') === 'true') {
+                        openDocs.delete(target);
+                        $(target).innerHTML = '';
+                        setExpanded(d, false);
+                        return;
+                    }
                     const [u, s] = d.dataset.docs.split(',');
-                    try { await loadDocs(u, s, d.dataset.target); }
-                    catch (e) { show($('msg'), e.message, 'error'); }
+                    openDocs.add(target);
+                    setExpanded(d, true);
+                    try { await loadDocs(u, s, target); }
+                    catch (e) {
+                        openDocs.delete(target);
+                        $(target).innerHTML = '';
+                        setExpanded(d, false);
+                        show($('msg'), e.message, 'error');
+                    }
                     return;
                 }
 
+                // Verify / flag (click again to clear)
                 const rv = ev.target.closest('button[data-review]');
                 if (rv) {
+                    rv.disabled = true;
                     try {
                         await api(`/uploads/documents/${rv.dataset.review}/review`, {
                             method: 'PUT',
                             body: { verified: rv.dataset.v === '1', flagged: rv.dataset.f === '1' }
                         });
                         await loadDocs(rv.dataset.u, rv.dataset.s, rv.dataset.target);
-                    } catch (e) { show($('msg'), e.message, 'error'); }
+                    } catch (e) { show($('msg'), e.message, 'error'); rv.disabled = false; }
                     return;
                 }
 
@@ -210,7 +273,8 @@
                     show($('msg'), 'Status updated.', 'ok');
                     loadBoard(); loadSummary(); loadScholarships();
                 } catch (e) { show($('msg'), e.message, 'error'); b.disabled = false; }
-            }); 
+            });
+
             $('fs').onchange = $('fc').onchange = loadBoard;
 
             $('sf').addEventListener('submit', async ev => {
