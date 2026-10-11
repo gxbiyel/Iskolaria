@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 from app.auth_util import require_admin
 from app.logic import check_eligibility
+from pydantic import BaseModel, Field
 
 app = FastAPI()
 
@@ -34,6 +35,8 @@ class ScholarshipIn(BaseModel):
     deadline: date
     required_documents: list[str]
     is_open: bool = True
+    max_gwa: float = Field(ge=1, le=5)
+    max_income: float = Field(ge=0)
 
 
 class EligibilityIn(BaseModel):
@@ -52,6 +55,13 @@ def health():
 def list_scholarships():
     with conn_cursor() as cur:
         cur.execute("SELECT * FROM scholarships WHERE is_open ORDER BY deadline")
+        return cur.fetchall()
+
+
+@app.get("/scholarships/all")
+def list_all_scholarships(_admin: int = Depends(require_admin)):
+    with conn_cursor() as cur:
+        cur.execute("SELECT * FROM scholarships ORDER BY is_open DESC, deadline")
         return cur.fetchall()
 
 

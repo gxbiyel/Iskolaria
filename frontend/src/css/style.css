@@ -878,3 +878,12 @@ td.docs-cell {
     border-color: var(--bad);
     color: #fff
 }
+
+.slots.full {
+    background: #fbe4e1
+}
+
+.slots.full .n,
+.slots.full .t {
+    color: var(--bad)
+}

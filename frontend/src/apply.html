@@ -27,6 +27,12 @@
                 .catch(e => { $('#content').innerHTML = `<div class="msg error">${esc(e.message)}</div>`; });
 
             function render() {
+                if (Number(sch.slots_remaining) <= 0) {
+                    $('#content').innerHTML = `<h1>${esc(sch.title)}</h1>
+                        <div class="msg error">All slots for this scholarship have been taken, so applications are no longer accepted.</div>
+                        <a class="btn secondary" href="index.html">Browse other scholarships</a>`;
+                    return;
+                }
                 const docs = sch.required_documents || [];
                 $('#content').innerHTML = `
                     <h1>${esc(sch.title)}</h1><p>${esc(sch.description)}</p>

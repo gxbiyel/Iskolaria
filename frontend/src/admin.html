@@ -26,6 +26,8 @@
                     <option value="approved">Approved</option>
                     <option value="rejected">Rejected</option>
                     <option value="waitlisted">Waitlisted</option>
+                    <option value="cancelled">Cancelled</option>
+                    <option value="removed">Removed</option>
                 </select></div>
             <div><label for="fc">Scholarship</label><select id="fc">
                     <option value="">All</option>
@@ -120,11 +122,15 @@
             }
 
             async function loadScholarships() {
-                scholarships = await api('/scholarships/scholarships');
+                // Admin-only endpoint: returns open AND closed scholarships
+                scholarships = await api('/scholarships/scholarships/all');
                 const cur = $('fc').value;
-                $('fc').innerHTML = '<option value="">All</option>' + scholarships.map(s => `<option value="${esc(s.id)}">${esc(s.title)}</option>`).join('');
-                $('fc').value = cur;
-                $('schlist').innerHTML = scholarships.map(s => `<div class="item"><div class="body"><h3>${esc(s.title)}</h3>
+                $('fc').innerHTML = '<option value="">All</option>' + scholarships.map(s =>
+                    `<option value="${esc(s.id)}">${esc(s.title)}${s.is_open ? '' : ' (closed)'}</option>`).join('');
+                $('fc').value = cur;   // keep the current selection after a refresh
+
+                const open = scholarships.filter(s => s.is_open);
+                $('schlist').innerHTML = open.map(s => `<div class="item"><div class="body"><h3>${esc(s.title)}</h3>
                     <p class="small muted">Deadline ${esc(day(s.deadline))}, ${esc(s.slots_remaining)} of ${esc(s.slots_total)} slots left</p></div>
                     <button class="btn danger small" data-close="${esc(s.id)}">Close scholarship</button></div>`).join('') || '<p class="muted">No open scholarships.</p>';
             }

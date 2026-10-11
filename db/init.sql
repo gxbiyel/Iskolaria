@@ -35,8 +35,8 @@ CREATE TABLE applications (
     user_id       INT NOT NULL REFERENCES users(id),
     scholarship_id INT NOT NULL REFERENCES scholarships(id),
     course        VARCHAR(80),
-    gwa           NUMERIC(3,2) NOT NULL,
-    family_income NUMERIC(12,2) NOT NULL,
+    gwa NUMERIC(3,2) NOT NULL CHECK (gwa BETWEEN 1 AND 5),
+    family_income NUMERIC(12,2) NOT NULL CHECK (family_income >= 0),
     year_level    INT NOT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'submitted'
                     CHECK (status IN ('submitted','under_review','approved','rejected','waitlisted','cancelled','removed')),
