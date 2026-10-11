@@ -329,6 +329,11 @@ textarea:focus {
     color: var(--bad)
 }
 
+.badge.closed {
+    background: #2b3533;
+    color: #fff
+}
+
 .cards {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));

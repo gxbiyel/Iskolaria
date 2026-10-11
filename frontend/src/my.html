@@ -27,14 +27,14 @@
             function loadApps() {
                 api('/applications/applications/mine').then(rows => {
                     $('apps').innerHTML = rows.length ? rows.map(a => `
-                        <div class="item"><div class="body"><h3>${esc(a.title)}</h3>
-                        <p class="small muted">Reference ${esc(a.reference_no)}</p>
-                        ${a.remarks ? `<p>Remarks from the scholarship office: ${esc(a.remarks)}</p>` : ''}</div>
-                        <div>${badge(a.status)}
-                            ${['submitted', 'under_review', 'waitlisted'].includes(a.status)
-                            ? `<div><button class="btn danger small" data-cancel="${esc(a.id)}">Cancel application</button></div>`
-                            : ''}
-                        </div></div>`).join('')
+                    <div class="item"><div class="body"><h3>${esc(a.title)}</h3>
+                    <p class="small muted">Reference ${esc(a.reference_no)}</p>
+                    ${a.scholarship_open === false ? '<p class="small muted">This scholarship is closed. No further changes are possible.</p>' : ''}
+                    ${a.remarks ? `<p>Remarks from the scholarship office: ${esc(a.remarks)}</p>` : ''}</div>
+                    <div>${badge(a.status)}${a.scholarship_open === false ? ' <span class="badge closed">Closed</span>' : ''}
+                        ${(a.scholarship_open !== false && ['submitted', 'under_review', 'waitlisted'].includes(a.status))
+                                            ? `<div><button class="btn danger small" data-cancel="${esc(a.id)}">Cancel application</button></div>` : ''}
+                    </div></div>`).join('')
                         : '<p>You have not applied yet. <a href="index.html">Browse open scholarships</a></p>';
                 }).catch(e => { $('apps').textContent = ''; show($('msg'), e.message, 'error'); });
 

@@ -128,10 +128,10 @@
                         <td>${esc(a.full_name || a.email || 'User ' + a.user_id)}</td>
                         <td>${esc(a.title)}</td>
                         <td>${esc(a.gwa)}<br><span class="small muted">PHP ${money(a.family_income || 0)}</span></td>
-                        <td>${badge(a.status)}${a.remarks ? `<div class="small muted">${esc(a.remarks)}</div>` : ''}
+                        <td>${badge(a.status)}${a.scholarship_open ? '' : ' <span class="badge closed">Closed</span>'}${a.remarks ? `<div class="small muted">${esc(a.remarks)}</div>` : ''}
                             <div><button class="linklike small" data-docs="${esc(a.user_id)},${esc(a.scholarship_id)}" data-target="d-${esc(a.id)}">View documents</button></div>
                             <div id="d-${esc(a.id)}"></div>
-                            ${NEXT[a.status].length ? `<input type="text" id="r-${esc(a.id)}" placeholder="Remarks (optional)" aria-label="Remarks">
+                            ${(a.scholarship_open && NEXT[a.status].length) ? `<input type="text" id="r-${esc(a.id)}" placeholder="Remarks (optional)" aria-label="Remarks">
                             <div class="actions">${NEXT[a.status].map(s => `<button class="btn small ${(s === 'rejected' || s === 'removed') ? 'danger' : ''}" data-id="${esc(a.id)}" data-status="${s}">${VERB[s]}</button>`).join('')}</div>` : ''}
                         </td>
                         </tr>`).join('') : '<tr><td colspan="5">No applications match these filters.</td></tr>';
@@ -236,7 +236,7 @@
                 const s = scholarships.find(x => String(x.id) === b.dataset.close);
                 try {
                     await api('/scholarships/scholarships/' + s.id, { method: 'PUT', body: { ...s, is_open: false } });
-                    show($('msg'), 'Scholarship closed.', 'ok'); loadScholarships();
+                    show($('msg'), 'Scholarship closed.', 'ok'); loadScholarships(); loadBoard(); loadSummary();
                 } catch (e) { show($('msg'), e.message, 'error'); }
             });
 

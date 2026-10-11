@@ -130,7 +130,8 @@ app.get(
     auth(),
     wrap(async (req, res) => {
         const r = await pool.query(
-            `SELECT a.id, ${refOf("a")} AS reference_no, a.status, a.remarks, s.title
+            `SELECT a.id, ${refOf("a")} AS reference_no, a.status, a.remarks, s.title,
+            s.is_open AS scholarship_open
             FROM applications a JOIN scholarships s ON s.id = a.scholarship_id
             WHERE a.user_id=$1 ORDER BY a.created_at DESC`,
             [req.user.id],
@@ -146,7 +147,9 @@ app.put("/applications/:id/cancel", auth(), wrap(async (req, res) => {
         await client.query("BEGIN");
         // user_id in the WHERE clause = ownership check
         const cur = await client.query(
-            "SELECT status, scholarship_id FROM applications WHERE id=$1 AND user_id=$2 FOR UPDATE",
+            `SELECT a.status, a.scholarship_id, s.is_open
+            FROM applications a JOIN scholarships s ON s.id = a.scholarship_id
+            WHERE a.id=$1 AND a.user_id=$2 FOR UPDATE OF a`,
             [req.params.id, req.user.id],
         );
         if (!cur.rowCount) {
@@ -154,6 +157,10 @@ app.put("/applications/:id/cancel", auth(), wrap(async (req, res) => {
             return res.status(404).json({ detail: "Not found" });
         }
         const row = cur.rows[0];
+        if (!row.is_open) {
+            await client.query("ROLLBACK");
+            return res.status(409).json({ detail: "This scholarship is closed." });
+        }
         if (!canCancel(row.status)) {
             await client.query("ROLLBACK");
             return res.status(409).json({ detail: `A ${row.status} application cannot be cancelled` });
@@ -182,7 +189,9 @@ app.put(
         try {
         await client.query("BEGIN");
         const cur = await client.query(
-            "SELECT status, scholarship_id, user_id FROM applications WHERE id=$1 FOR UPDATE",
+            `SELECT a.status, a.scholarship_id, a.user_id, s.is_open
+            FROM applications a JOIN scholarships s ON s.id = a.scholarship_id
+            WHERE a.id=$1 FOR UPDATE OF a`,
             [req.params.id],
         );
         if (!cur.rowCount) {
@@ -190,6 +199,10 @@ app.put(
             return res.status(404).json({ detail: "Not found" });
         }
         const row = cur.rows[0];
+        if (!row.is_open) {
+            await client.query("ROLLBACK");
+            return res.status(409).json({detail: "This scholarship is closed. Applications can no longer be reviewed.",});
+        }
         if (!canTransition(row.status, status)) {
             await client.query("ROLLBACK");
             return res
@@ -247,7 +260,8 @@ app.get('/applications', auth('admin'), wrap(async (req, res) => {
     const r = await pool.query(
         `SELECT a.id, ${refOf("a")} AS reference_no, a.status, a.remarks, a.gwa,
                     a.family_income, a.year_level, a.created_at,
-                    u.full_name, u.student_number, s.title, a.user_id, a.scholarship_id
+                    u.full_name, u.student_number, s.title, a.user_id, a.scholarship_id,
+                    s.is_open AS scholarship_open
             FROM applications a
             JOIN users u ON u.id = a.user_id
             JOIN scholarships s ON s.id = a.scholarship_id
