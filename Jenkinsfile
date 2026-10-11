@@ -33,7 +33,7 @@ pipeline {
 
     triggers {
         githubPush()                          // fired by the GitHub webhook
-        pollSCM('H/1 * * * *')             // fallback: uncomment if the webhook is unavailable
+        pollSCM('* * * * *')             // fallback: uncomment if the webhook is unavailable
     }
 
     options {
