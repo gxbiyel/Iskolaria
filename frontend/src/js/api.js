@@ -134,7 +134,7 @@ async function openFile(id) {
     window.open(URL.createObjectURL(await res.blob()), "_blank");
 }
 
-const LOGO = `<svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#0b3b3a"/><path d="M16 7 4.5 13 16 19l8.5-4.4V21h2v-8L16 7Z" fill="#fff"/><path d="M9 17.2v3.6c0 1.5 3.1 3.2 7 3.2s7-1.7 7-3.2v-3.6L16 21l-7-3.8Z" fill="#f2b134"/></svg>`;
+const LOGO = `<svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#FFD550"/><path d="M16 7 4.5 13 16 19l8.5-4.4V21h2v-8L16 7Z" fill="#1B3C8C"/><path d="M9 17.2v3.6c0 1.5 3.1 3.2 7 3.2s7-1.7 7-3.2v-3.6L16 21l-7-3.8Z" fill="#1B3C8C" opacity=".75"/></svg>`;
 
 function renderLayout() {
     const u = session.user,
