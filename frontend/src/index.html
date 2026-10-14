@@ -1,38 +1,48 @@
 <!doctype html>
 <html lang="en">
-
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Scholarships - Iskolaria</title>
-    <link rel="stylesheet" href="css/style.css">
-</head>
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
 
-<body>
+  <body>
     <header id="nav"></header>
     <main class="catalog">
-        <h1>Open scholarships:</h1>
-        <p class="muted">Check the requirements, then apply with your student account.</p>
-        <div id="msg" class="msg"></div>
-        <div id="list">Loading scholarships...</div>
+      <h1>Open scholarships: CI/CD Deployment Successful!</h1>
+      <p class="muted">
+        Check the requirements, then apply with your student account.
+      </p>
+      <div id="msg" class="msg"></div>
+      <div id="list">Loading scholarships...</div>
     </main>
     <footer id="footer"></footer>
     <script src="js/build.js"></script>
     <script src="js/api.js"></script>
     <script>
-        api('/scholarships/scholarships').then(items => {
-            items = items.filter(s => s.is_open !== false);
-            document.getElementById('list').innerHTML = items.length ? items.map(s => `
-    <div class="item"${/uaeb/i.test(s.title || '') ? ' data-scholarship="uaeb"' : ''}><div class="body">
+      api("/scholarships/scholarships")
+        .then((items) => {
+          items = items.filter((s) => s.is_open !== false);
+          document.getElementById("list").innerHTML = items.length
+            ? items
+                .map(
+                  (s) => `
+    <div class="item"${/uaeb/i.test(s.title || "") ? ' data-scholarship="uaeb"' : ""}><div class="body">
         <h3>${esc(s.title)}</h3><p>${esc(s.description)}</p>
         <div class="facts"><span>GWA ${esc(s.max_gwa)} or better</span><span>Family income up to PHP ${money(s.max_income)}</span>
-        <span>Year levels ${esc((s.year_levels || []).join(', '))}</span><span>Deadline ${esc(day(s.deadline))}</span></div>
-        <p class="small muted">Required documents: ${esc((s.required_documents || []).map(label).join(', '))}</p>
+        <span>Year levels ${esc((s.year_levels || []).join(", "))}</span><span>Deadline ${esc(day(s.deadline))}</span></div>
+        <p class="small muted">Required documents: ${esc((s.required_documents || []).map(label).join(", "))}</p>
         <a class="btn" href="apply.html?id=${encodeURIComponent(s.id)}">Apply now</a></div>
-        <div class="slots"><div class="n">${esc(s.slots_remaining)}</div><div class="t">slots left</div></div></div>`).join('')
-                : '<p>No scholarships are open right now. Check back after the next announcement.</p>';
-        }).catch(e => { document.getElementById('list').textContent = ''; show(document.getElementById('msg'), e.message, 'error'); });
+        <div class="slots"><div class="n">${esc(s.slots_remaining)}</div><div class="t">slots left</div></div></div>`,
+                )
+                .join("")
+            : "<p>No scholarships are open right now. Check back after the next announcement.</p>";
+        })
+        .catch((e) => {
+          document.getElementById("list").textContent = "";
+          show(document.getElementById("msg"), e.message, "error");
+        });
     </script>
-</body>
-
+  </body>
 </html>
