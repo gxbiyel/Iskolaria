@@ -10,7 +10,7 @@ services:
     proxy:
         build: ./proxy
         image: iskolaria/proxy:${TAG:-latest}
-        ports: ["8080:80"]               # the ONLY published port
+        ports: ["8080:80"] 
         depends_on:
             frontend: { condition: service_healthy }
             auth-service: { condition: service_healthy }
