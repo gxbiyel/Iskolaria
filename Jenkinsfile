@@ -1,11 +1,3 @@
-// Iskolaria CI/CD pipeline (declarative, pipeline as code)
-// Flow: Checkout -> Test -> Build Images -> Deploy -> Smoke Test
-// A failing Test stage stops the pipeline, so broken code never reaches Deploy.
-
-// Sends the build result to Discord. The webhook URL comes from Jenkins Credentials
-// (ID: discord-webhook). \$DISCORD_URL is escaped so the shell expands it and
-// Groovy never interpolates the secret. "|| true" means a Discord outage, and the
-// try/catch means a missing credential, can never fail an otherwise good build.
 def notifyDiscord(String emoji, String status, String extra = '') {
     try {
         withCredentials([string(credentialsId: 'discord-webhook', variable: 'DISCORD_URL')]) {
@@ -23,17 +15,14 @@ pipeline {
     agent any
 
     environment {
-        // Must match "name:" in docker-compose.yml. Same project name = same named volumes,
-        // so the database and uploaded files survive every redeploy.
+        
         COMPOSE_PROJECT_NAME = 'iskolaria'
-        // Images are tagged with the build number, so any earlier build can be redeployed (rollback).
-        // docker-compose.yml reads ${TAG}; the frontend footer shows it too.
         TAG = "${env.BUILD_NUMBER}"
     }
 
     triggers {
-        githubPush()                          // fired by the GitHub webhook
-        pollSCM('* * * * *')             // fallback: uncomment if the webhook is unavailable
+        githubPush()                          
+        pollSCM('* * * * *')     
     }
 
     options {
@@ -49,9 +38,7 @@ pipeline {
         }
 
         stage('Test') {
-            // Runs the "test" stage of each Dockerfile. If any test fails,
-            // docker build exits non-zero, this stage fails, and the pipeline
-            // stops here: Build Images and Deploy never run.
+            
             steps {
                 sh 'docker build --target test -t iskolaria/auth-service:test ./auth-service'
                 sh 'docker build --target test -t iskolaria/scholarship-api:test ./scholarship-api'
@@ -63,14 +50,14 @@ pipeline {
 
         stage('Build Images') {
             steps {
-                // Builds every service and tags it iskolaria/<service>:<build number>
+                
                 sh 'docker compose build'
             }
         }
 
         stage('Deploy') {
             steps {
-                // The real .env lives in Jenkins Credentials (Secret file), never in Git.
+                
                 withCredentials([file(credentialsId: 'iskolaria-env', variable: 'ENV_FILE')]) {
                     sh 'cp "$ENV_FILE" .env'
                     sh 'docker compose up -d --no-build --remove-orphans'
@@ -79,9 +66,7 @@ pipeline {
         }
 
         stage('Smoke Test') {
-            // Checks the health endpoints through the reverse proxy, retrying for up to 60 seconds.
-            // 127.0.0.1 instead of localhost: busybox wget may try IPv6 (::1) first,
-            // and nginx here listens on IPv4 only.
+            
             steps {
                 sh '''
                     for i in $(seq 1 12); do
@@ -110,8 +95,8 @@ pipeline {
             notifyDiscord('❌', 'FAILED', '| previous version still running, check the Stage View')
         }
         always {
-            sh 'rm -f .env'                    // never leave secrets in the workspace
-            sh 'docker image prune -f || true' // removes only untagged leftovers; tagged builds stay for rollback
+            sh 'rm -f .env'                    
+            sh 'docker image prune -f || true' 
         }
     }
 }
