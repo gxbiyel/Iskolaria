@@ -1,8 +1,6 @@
 FROM jenkins/jenkins:lts-jdk17
 USER root
 
-# Install the Docker CLI and the Compose plugin only (not the Docker engine).
-# The engine itself comes from the host through the mounted socket.
 RUN apt-get update && apt-get install -y ca-certificates curl gnupg \
     && install -m 0755 -d /etc/apt/keyrings \
     && curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc \

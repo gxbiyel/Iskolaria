@@ -1,15 +1,15 @@
 services:
-    jenkins:
-        build: .
-        container_name: jenkins
-        user: root                  # lab only: lets Jenkins use the Docker socket
-        restart: unless-stopped
-        ports:
-            - "8081:8080"             # Jenkins web UI: http://localhost:8081
-            - "50000:50000"
-        volumes:
-            - jenkins_home:/var/jenkins_home          # persistent Jenkins data
-            - /var/run/docker.sock:/var/run/docker.sock
+  jenkins:
+    build: .
+    container_name: jenkins
+    user: root
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
 
 volumes:
-    jenkins_home:
+  jenkins_home:
