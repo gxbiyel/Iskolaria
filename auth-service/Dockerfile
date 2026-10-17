@@ -1,10 +1,10 @@
+# Dockerfile auth-service
 FROM python:3.12-slim AS base
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
 
-# test stage: Jenkins runs "docker build --target test"
 FROM base AS test
 RUN pip install --no-cache-dir pytest
 COPY tests ./tests

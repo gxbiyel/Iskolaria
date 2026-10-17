@@ -1,3 +1,4 @@
+# Dockerfile frontend
 FROM nginx:1.27-alpine
 ARG BUILD_NUMBER=dev
 COPY src /usr/share/nginx/html

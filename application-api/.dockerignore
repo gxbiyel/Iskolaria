@@ -1,2 +1,3 @@
+# Dockerignore
 node_modules
 .env
