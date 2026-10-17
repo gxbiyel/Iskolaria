@@ -31,7 +31,7 @@ The system is split into modules, each running in its own Docker container:
 
 ## Architecture Diagram
 
-![Iskolaria architecture diagram](docs/architecture.png)
+![Iskolaria architecture diagram](docs/iskolaria_architecture.png)
 
 **Networks and ports**
 
